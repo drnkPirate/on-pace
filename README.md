@@ -1,11 +1,31 @@
-# On pace.
+<p align="center">
+  <img src="UsageNotch/Assets.xcassets/AppIcon.appiconset/UsageNotch-256.png" width="120" alt="On pace. Trail icon">
+</p>
 
-On pace. shows Claude Code and Codex usage beside your Mac's camera. Hover over the notch for reset times, recent activity, token counts, and history.
+<h1 align="center">On pace.</h1>
+
+<p align="center">Claude Code and Codex usage at a glance in your Mac's notch.</p>
+
+<p align="center"><a href="https://github.com/sandergo90/on-pace/releases">Download for macOS</a> · macOS 14+</p>
+
+## See it in action
+
+<p align="center">
+  <img src="docs/images/on-pace-notch.png" width="820" alt="Collapsed notch showing Claude at 68% in coral and Codex at 23% in blue">
+</p>
+
+Hover over the notch to see reset times, recent activity, and usage history.
+
+<p align="center">
+  <img src="docs/images/on-pace-detail.png" width="820" alt="Expanded On pace. panel showing Claude and Codex session and weekly limits, activity charts, token counts, and seven-day history">
+</p>
+
+The screenshots show sample usage.
 
 ## Install
 
 1. Open [GitHub Releases](https://github.com/sandergo90/on-pace/releases).
-2. Download and unzip the Mac app when a release includes a Mac download.
+2. Download the macOS ZIP and unzip it.
 3. Move **On pace.** to Applications and open it.
 
 Use macOS 14 or later on a Mac with Apple silicon or an Intel processor. Install and sign in to the command-line tool for each provider you want to track. [Claude Code setup](https://code.claude.com/docs/en/quickstart) · [Codex setup](https://developers.openai.com/codex/cli)
