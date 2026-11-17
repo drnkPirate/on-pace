@@ -4,6 +4,7 @@ import Observation
 @MainActor @Observable
 final class UsageStore {
     private var states: [Provider: UsageState] = [:]
+    private(set) var compactQuotaResets: [Provider: Date] = [:]
     private(set) var history: LocalUsageSnapshot?
     private let historyReader = LocalUsageReader()
     private(set) var isRefreshing = false
@@ -39,7 +40,7 @@ final class UsageStore {
                     guard let self else { continue }
                     switch result {
                     case .success(let reading):
-                        self.states[provider] = .current(reading)
+                        self.record(reading, for: provider)
                     case .failure(let failure):
                         let previous = switch failure {
                         case .signInRequired, .noQuota: nil as UsageReading?
@@ -52,6 +53,13 @@ final class UsageStore {
             self?.isRefreshing = false
             self?.refreshTask = nil
         }
+    }
+
+    func record(_ reading: UsageReading, for provider: Provider) {
+        if let previous = state(for: provider).reading, reading.didResetCompactQuota(since: previous) {
+            compactQuotaResets[provider] = reading.fetchedAt
+        }
+        states[provider] = .current(reading)
     }
 
     func logsChanged() {

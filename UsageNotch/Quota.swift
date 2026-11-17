@@ -92,6 +92,17 @@ struct UsageReading: Sendable {
         session ?? otherLimits.first { $0.id != "cloud" && $0.durationMinutes == 10_080 }
     }
 
+    func didResetCompactQuota(since previous: UsageReading) -> Bool {
+        guard let oldWindow = previous.compactQuota,
+              let newWindow = compactQuota,
+              oldWindow.id == newWindow.id,
+              oldWindow.durationMinutes == newWindow.durationMinutes,
+              let oldReset = oldWindow.resetsAt,
+              let newReset = newWindow.resetsAt else { return false }
+
+        return fetchedAt > previous.fetchedAt && oldReset <= fetchedAt && newReset > fetchedAt
+    }
+
     func isStale(at now: Date) -> Bool {
         now.timeIntervalSince(fetchedAt) >= 300
     }

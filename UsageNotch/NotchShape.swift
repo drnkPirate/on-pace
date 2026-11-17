@@ -40,6 +40,7 @@ struct CompactNotchLayout: Equatable {
 }
 
 struct EdgeLight: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let store: UsageStore
     let now: Date
     var animateHighlights = true
@@ -134,6 +135,11 @@ struct EdgeLight: View {
             }
         }
         .frame(width: Self.barWidth, height: 4)
+        .overlay {
+            if animateHighlights && !reduceMotion {
+                ResetRipple(provider: provider, reset: store.compactQuotaResets[provider])
+            }
+        }
         .accessibilityHidden(true)
     }
 
@@ -151,6 +157,33 @@ struct EdgeLight: View {
             return "\(provider.name) \(quota.percentage) of \(period)\(age)"
         }
         return "AI usage: " + (descriptions.isEmpty ? "no readings" : descriptions.joined(separator: ", ")) + ". Show details"
+    }
+}
+
+private struct ResetRipple: View {
+    let provider: Provider
+    let reset: Date?
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            let crest = width * 0.55
+            KeyframeAnimator(initialValue: 1.0, trigger: reset) { progress in
+                let distance = (width + crest) * (progress - 0.5)
+                LinearGradient(colors: [.clear, provider.tint, .clear],
+                               startPoint: .leading, endPoint: .trailing)
+                    .frame(width: crest)
+                    .offset(x: (width - crest) / 2 + (provider == .claude ? distance : -distance))
+                    .opacity(0.85 * sin(.pi * progress))
+            } keyframes: { _ in
+                KeyframeTrack(\.self) {
+                    MoveKeyframe(0.0)
+                    LinearKeyframe(1.0, duration: 0.8)
+                }
+            }
+        }
+        .clipShape(Capsule())
+        .allowsHitTesting(false)
     }
 }
 
