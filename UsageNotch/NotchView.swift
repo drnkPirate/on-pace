@@ -102,6 +102,7 @@ struct NotchView: View {
     private func card(_ provider: Provider, at now: Date) -> some View {
         let state = store.state(for: provider)
         let reading = state.reading
+        let featuredQuota = provider == .codex ? reading?.compactQuota : reading?.session
         let stale = reading?.isStale(at: now) == true
         let activity = store.history?.values[provider]
         return VStack(alignment: .leading, spacing: 0) {
@@ -139,12 +140,13 @@ struct NotchView: View {
             .frame(height: 32)
 
             VStack(alignment: .leading, spacing: 0) {
-                if let session = reading?.session {
-                    headline(session, provider: provider, stale: stale, now: now)
+                if let featuredQuota {
+                    headline(featuredQuota, provider: provider, stale: stale, now: now)
                         .padding(.bottom, 12)
                 }
                 if let reading {
-                    ForEach(reading.otherLimits.prefix(2)) { limit in
+                    let remainingLimits = reading.otherLimits.filter { $0.id != featuredQuota?.id }
+                    ForEach(remainingLimits.prefix(2)) { limit in
                         quotaRow(limit, provider: provider)
                     }
                 } else if case .unavailable(let reason, _) = state {
@@ -205,7 +207,7 @@ struct NotchView: View {
             .frame(width: 84, height: 84)
 
             VStack(alignment: .leading, spacing: 5) {
-                Text("5-hour session").font(.system(size: 12)).foregroundStyle(secondary)
+                Text(quota.title).font(.system(size: 12)).foregroundStyle(secondary)
                 if let minutes = quota.minutesUntilReset(from: now) {
                     Text(minutes == 0 ? "Reset pending" :
                          "\(quota.level == .reached ? "Back in" : "Resets in") \(UsageFormat.duration(minutes))")
