@@ -11,16 +11,16 @@
 ## See it in action
 
 <p align="center">
-  <img src="docs/images/on-pace-notch.png" width="820" alt="Collapsed notch showing Claude at 68% in coral and Codex at 23% in blue">
+  <img src="docs/images/on-pace-notch.png" width="820" alt="Collapsed notch showing Claude at 68% of its session limit and Codex at 7% of its weekly limit">
 </p>
 
 Hover over the notch to see reset times, recent activity, and usage history.
 
 <p align="center">
-  <img src="docs/images/on-pace-detail.png" width="820" alt="Expanded On pace. panel showing Claude and Codex session and weekly limits, activity charts, token counts, and seven-day history">
+  <img src="docs/images/on-pace-detail.png" width="820" alt="Expanded panel showing a Claude session ring and a Codex weekly limit ring, alongside activity charts and seven-day history">
 </p>
 
-The screenshots show sample usage.
+The screenshots show the local build with Claude and Codex logos and sample usage. The Codex ring shows the weekly limit when a five-hour limit is unavailable.
 
 ## Install
 
