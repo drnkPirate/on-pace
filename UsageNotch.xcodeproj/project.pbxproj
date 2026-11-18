@@ -15,11 +15,13 @@
 		4A594FABC25986691A12023A /* QuotaSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = CBAC56EF1062CC2A11C7D591 /* QuotaSources.swift */; };
 		74D5B72964F982079FFE546C /* NotchShape.swift in Sources */ = {isa = PBXBuildFile; fileRef = C68F19A5B400286A57BC8A6C /* NotchShape.swift */; };
 		761170C3EC97538F52D936A1 /* NotchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E146FE749A9730E4C7CD1D7 /* NotchView.swift */; };
+		79540FE2AF28B3023716DD36 /* UsagePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 071AA4FE22C9E337D826A790 /* UsagePreferences.swift */; };
 		804FFC109F76B334CD56B888 /* LocalUsage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59B39CF49131409E2A2BCB87 /* LocalUsage.swift */; };
 		8B73DFDC44B9580AF54FBE48 /* Quota.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8DBD13DC8B50B0000709104 /* Quota.swift */; };
 		8D26ECB213950F1854AF4669 /* UsageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DBFAD660B90A5D4A36F40D5 /* UsageStore.swift */; };
 		AB8C2049A0C008D63CB98751 /* UsageHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 259DE894925883D561E3D56C /* UsageHistory.swift */; };
 		AF3606FE1F3EA3E5526D666C /* TrailBrand.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFF1A13D938A0E1A1230908D /* TrailBrand.swift */; };
+		B179A39C44B56E234F26D0B8 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B84470243699D1900982366 /* SettingsView.swift */; };
 		B3968D4A04C362EEA03B2A4C /* NotchSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = C72CDBC866E9F496E0E27BCB /* NotchSurface.swift */; };
 		B4B793AC04F0675567D15DF3 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00AE458C2E3690DC601A4125 /* App.swift */; };
 		C490D9E0E6C54D7BF3CB4BF5 /* StandardTokenRates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5411FD7EB3039EED30D59A04 /* StandardTokenRates.swift */; };
@@ -29,10 +31,12 @@
 
 /* Begin PBXFileReference section */
 		00AE458C2E3690DC601A4125 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		071AA4FE22C9E337D826A790 /* UsagePreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsagePreferences.swift; sourceTree = "<group>"; };
 		1EDD2C0B2C10DFD3E165E993 /* UsageCharts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCharts.swift; sourceTree = "<group>"; };
 		259DE894925883D561E3D56C /* UsageHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageHistory.swift; sourceTree = "<group>"; };
 		2E146FE749A9730E4C7CD1D7 /* NotchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchView.swift; sourceTree = "<group>"; };
 		2FE716A196E406A21226F6F1 /* CLIConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIConnection.swift; sourceTree = "<group>"; };
+		3B84470243699D1900982366 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		508BE673C280BFC13F519156 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		52BFBC27F50314FFA5DECDDB /* UsageFormat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageFormat.swift; sourceTree = "<group>"; };
 		5411FD7EB3039EED30D59A04 /* StandardTokenRates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StandardTokenRates.swift; sourceTree = "<group>"; };
@@ -64,6 +68,7 @@
 				2E146FE749A9730E4C7CD1D7 /* NotchView.swift */,
 				C8DBD13DC8B50B0000709104 /* Quota.swift */,
 				CBAC56EF1062CC2A11C7D591 /* QuotaSources.swift */,
+				3B84470243699D1900982366 /* SettingsView.swift */,
 				5411FD7EB3039EED30D59A04 /* StandardTokenRates.swift */,
 				BFF1A13D938A0E1A1230908D /* TrailBrand.swift */,
 				8596B8FA5DF45FED58C2698F /* TrailGeometry.swift */,
@@ -72,6 +77,7 @@
 				259DE894925883D561E3D56C /* UsageHistory.swift */,
 				686D07570B90FA5FE331C800 /* UsageHistoryView.swift */,
 				BCD2DDCF49A7D94BC0D98ADB /* UsageLogWatcher.swift */,
+				071AA4FE22C9E337D826A790 /* UsagePreferences.swift */,
 				6DBFAD660B90A5D4A36F40D5 /* UsageStore.swift */,
 			);
 			path = UsageNotch;
@@ -171,6 +177,7 @@
 				761170C3EC97538F52D936A1 /* NotchView.swift in Sources */,
 				8B73DFDC44B9580AF54FBE48 /* Quota.swift in Sources */,
 				4A594FABC25986691A12023A /* QuotaSources.swift in Sources */,
+				B179A39C44B56E234F26D0B8 /* SettingsView.swift in Sources */,
 				C490D9E0E6C54D7BF3CB4BF5 /* StandardTokenRates.swift in Sources */,
 				AF3606FE1F3EA3E5526D666C /* TrailBrand.swift in Sources */,
 				CC25554CE122156F1900E16A /* TrailGeometry.swift in Sources */,
@@ -179,6 +186,7 @@
 				AB8C2049A0C008D63CB98751 /* UsageHistory.swift in Sources */,
 				372B19C8197D1B49EBBFFECB /* UsageHistoryView.swift in Sources */,
 				07D43AD400BEA777A66788DD /* UsageLogWatcher.swift in Sources */,
+				79540FE2AF28B3023716DD36 /* UsagePreferences.swift in Sources */,
 				8D26ECB213950F1854AF4669 /* UsageStore.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

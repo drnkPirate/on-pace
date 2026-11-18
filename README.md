@@ -35,8 +35,11 @@ Use macOS 14 or later on a Mac with Apple silicon or an Intel processor. Install
 - The notch shows the reported five-hour limit, or the weekly limit when the five-hour limit is unavailable.
 - Hover for the breakdown. Click the notch or use the pin to keep it open.
 - Choose **7 days** or **30 days** to compare activity with the preceding period. The app remembers your choice.
-- Open **Settings** to manage hover, open **About**, or quit.
-- On a display without a camera notch, the meter appears below the menu bar.
+- Use the gear menu to open **Settings…**, **About On pace.**, or quit.
+- On a display without a camera notch, a compact notch shape sits at the top edge, within the menu bar's height.
+- The small `5h` and `wk` labels identify the period beside each percentage. The panel shows the same limit in its ring.
+- In **Settings > Providers**, choose which providers appear in the notch, panel, and history. At least one stays on.
+- In **Settings > General > Display**, choose the primary display or a specific monitor. The app remembers your choice and uses the primary display when that monitor is disconnected.
 
 ## Usage data
 

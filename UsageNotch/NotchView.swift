@@ -2,12 +2,12 @@ import SwiftUI
 
 struct NotchView: View {
     let store: UsageStore
-    let cameraWidth: CGFloat
+    let compactStyle: CompactStyle
     let detailWidth: CGFloat
     let presentation: NotchPresentation
     let togglePin: () -> Void
     let openSettings: () -> Void
-    let compactLayoutChanged: (CompactNotchLayout) -> Void
+    let compactWidthChanged: (CGFloat) -> Void
 
     private var expanded: Bool { presentation.expanded }
     private var pinned: Bool { presentation.pinned }
@@ -15,12 +15,9 @@ struct NotchView: View {
     private let surface = Color(red: 18 / 255, green: 18 / 255, blue: 20 / 255)
 
     var body: some View {
-        let layout = EdgeLight.compactLayout(cameraWidth: cameraWidth, store: store)
-        return TimelineView(.periodic(from: .now, by: expanded ? 1 : 5)) { timeline in
+        TimelineView(.periodic(from: .now, by: expanded ? 1 : 5)) { timeline in
             ZStack(alignment: .top) {
                 compact(at: timeline.date)
-                    .frame(width: layout.width, height: NotchShape.compactHeight)
-                    .offset(x: layout.centerOffset)
                     .opacity(expanded ? 0 : 1)
                     .animation(presentation.animates ? .easeOut(duration: 0.13).delay(expanded ? 0 : 0.07) : nil,
                                value: expanded)
@@ -41,23 +38,23 @@ struct NotchView: View {
         .monospacedDigit()
         .foregroundStyle(.white)
         .environment(\.colorScheme, .dark)
-        .onChange(of: layout) { _, layout in compactLayoutChanged(layout) }
     }
 
     private func compact(at now: Date) -> some View {
-        EdgeLight(store: store, now: now, animateHighlights: !expanded, action: togglePin)
+        EdgeLight(store: store, style: compactStyle, now: now, animateHighlights: !expanded, action: togglePin)
+            .onGeometryChange(for: CGFloat.self, of: { $0.size.width }, action: compactWidthChanged)
             .opacity(presentation.showsLaunchMark ? 0 : 1)
             .overlay(alignment: .leading) {
                 if presentation.showsLaunchMark {
                     TrailMark(size: 32, animateOnAppear: true)
-                        .padding(.leading, EdgeLight.edgeInset)
+                        .padding(.leading, compactStyle.shoulderWidth + 16)
                         .allowsHitTesting(false)
                 }
             }
     }
 
     private func details(at now: Date) -> some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 12) {
             HStack(spacing: 8) {
                 Button(action: togglePin) {
                     HStack(spacing: 7) {
@@ -83,20 +80,18 @@ struct NotchView: View {
                     .accessibilityAddTraits(pinned ? .isSelected : [])
             }
             .foregroundStyle(secondary)
-            .padding(.horizontal, 3)
+            .padding(.horizontal, 4)
             .frame(height: 34)
 
-            HStack(alignment: .top, spacing: 16) {
-                ForEach(Provider.allCases) { card($0, at: now) }
+            HStack(alignment: .top, spacing: 12) {
+                ForEach(store.preferences.enabledProviders) { card($0, at: now) }
             }
-            .padding(.top, 12)
 
-            UsageHistoryView(snapshot: store.history)
-                .frame(height: 234)
-                .padding(.top, 12)
-                .padding(.bottom, 18)
+            UsageHistoryView(snapshot: store.history, providers: store.preferences.enabledProviders)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, NotchShape.expandedShoulderWidth + 20)
+        .padding(.bottom, 18)
     }
 
     private func card(_ provider: Provider, at now: Date) -> some View {
@@ -105,86 +100,84 @@ struct NotchView: View {
         let stale = reading?.isStale(at: now) == true
         let activity = store.history?.values[provider]
         return VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                ToolSymbol(provider: provider)
-                    .frame(width: 26, height: 26)
-                    .background(provider.tint.opacity(0.16), in: RoundedRectangle(cornerRadius: 8))
-                Text(provider.name)
-                    .font(.system(size: 15, weight: .semibold))
-                    .accessibilityAddTraits(.isHeader)
-                if let plan = reading?.plan {
-                    Text(provider == .codex ? "ChatGPT \(plan)" : plan)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 2)
-                        .overlay { Capsule().strokeBorder(.white.opacity(0.15)) }
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                }
-                Spacer(minLength: 0)
-                if let today = activity?.today, let value = today.apiValue {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(UsageFormat.euro(value))
-                            .font(.system(size: 13, weight: .semibold))
-                        Text(today.hasUnpricedUsage ? "Partial API value today" : "API value today")
-                            .font(.system(size: 10))
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(spacing: 9) {
+                    ToolSymbol(provider: provider)
+                        .frame(width: 26, height: 26)
+                        .background(provider.tint.opacity(0.16), in: RoundedRectangle(cornerRadius: 8))
+                    Text(provider.name)
+                        .font(.system(size: 15, weight: .semibold))
+                        .accessibilityAddTraits(.isHeader)
+                    if let plan = reading?.plan {
+                        Text(provider == .codex ? "ChatGPT \(plan)" : plan)
+                            .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .overlay { Capsule().strokeBorder(.white.opacity(0.14)) }
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
                     }
-                    .lineLimit(1)
-                    .help("Estimated value of local tokens at standard API rates, converted to euros")
-                    .accessibilityElement(children: .combine)
+                    Spacer(minLength: 0)
+                    if let today = activity?.today, let value = today.apiValue {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(UsageFormat.euro(value))
+                                .font(.system(size: 13, weight: .semibold))
+                            Text(today.hasUnpricedUsage ? "Partial API value today" : "API value today")
+                                .font(.system(size: 10))
+                                .foregroundStyle(secondary)
+                        }
+                        .lineLimit(1)
+                        .help("Estimated value of local tokens at standard API rates, converted to euros")
+                        .accessibilityElement(children: .combine)
+                    }
                 }
-            }
-            .frame(height: 32)
+                .frame(height: 32)
 
-            VStack(alignment: .leading, spacing: 0) {
-                if let session = reading?.session {
-                    headline(session, provider: provider, stale: stale, now: now)
-                        .padding(.bottom, 12)
-                }
                 if let reading {
-                    ForEach(reading.otherLimits.prefix(2)) { limit in
-                        quotaRow(limit, provider: provider)
+                    VStack(alignment: .leading, spacing: 16) {
+                        if let quota = reading.compactQuota {
+                            headline(quota, provider: provider, stale: stale, now: now)
+                        }
+                        if !reading.detailLimits.isEmpty {
+                            VStack(spacing: 12) {
+                                ForEach(reading.detailLimits.prefix(2)) { limit in
+                                    quotaRow(limit, provider: provider)
+                                }
+                            }
+                        }
                     }
+                    .opacity(stale ? 0.4 : 1)
+                    .accessibilityHint(stale ? "Last known quota" : "")
                 } else if case .unavailable(let reason, _) = state {
                     Text(reason.message(for: provider)).font(.system(size: 12)).foregroundStyle(secondary)
                 }
             }
-            .opacity(stale ? 0.4 : 1)
-            .accessibilityHint(stale ? "Last known quota" : "")
-            .frame(height: 168, alignment: .topLeading)
-            .padding(.top, 14)
 
-            Spacer(minLength: 0)
-            ActivityChart(usage: activity, measuredAt: store.history?.at, tint: provider.tint)
-                .frame(height: 77)
-            if let activity {
-                HStack(spacing: 8) {
-                    metric("Tokens today", value: activity.today.tokens.formatted(.number.notation(.compactName).locale(UsageFormat.locale)),
-                           help: "\(activity.today.tokens.formatted()) tokens, including cache")
-                    metric("Sessions", value: activity.today.sessions.count.formatted(), help: "Local sessions with token usage today")
-                    if let rate = activity.cacheHitRate {
-                        metric("Cache hits", value: rate.formatted(.percent.precision(.fractionLength(0))),
+            Spacer(minLength: 16)
+
+            VStack(alignment: .leading, spacing: 16) {
+                ActivityChart(usage: activity, measuredAt: store.history?.at, tint: provider.tint)
+                if let activity {
+                    HStack(spacing: 8) {
+                        metric("Tokens today", value: activity.today.tokens.formatted(.number.notation(.compactName).locale(UsageFormat.locale)),
+                               help: "\(activity.today.tokens.formatted()) tokens, including cache")
+                        metric("Sessions", value: activity.today.sessions.count.formatted(), help: "Local sessions with token usage today")
+                        metric("Cache hits", value: activity.cacheHitRate?.formatted(.percent.precision(.fractionLength(0))) ?? "N/A",
                                help: "Share of input tokens served from cache")
                     }
                 }
-                .frame(height: 46)
-                .padding(.top, 12)
-            } else {
-                Color.clear.frame(height: 58)
             }
         }
         .padding(16)
-        .frame(maxWidth: .infinity)
-        .frame(height: 402)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(surface, in: RoundedRectangle(cornerRadius: 18))
         .overlay { RoundedRectangle(cornerRadius: 18).strokeBorder(.white.opacity(0.07)).allowsHitTesting(false) }
     }
 
     private func headline(_ quota: QuotaWindow, provider: Provider, stale: Bool, now: Date) -> some View {
         let reached = quota.level == .reached && (quota.resetsAt.map { $0 > now } ?? true)
-        return HStack(spacing: 17) {
+        return HStack(spacing: 16) {
             ZStack {
                 Circle().strokeBorder(.white.opacity(0.09), lineWidth: 8)
                 if quota.fractionUsed > 0 {
@@ -204,36 +197,52 @@ struct NotchView: View {
             }
             .frame(width: 84, height: 84)
 
-            VStack(alignment: .leading, spacing: 5) {
-                Text("5-hour session").font(.system(size: 12)).foregroundStyle(secondary)
-                if let minutes = quota.minutesUntilReset(from: now) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(quota.durationMinutes == 300 ? "5-hour session" : "Weekly limit").font(.system(size: 11.5)).foregroundStyle(secondary)
+                if quota.durationMinutes != 300, let reset = quota.resetsAt {
+                    Text("Resets \(UsageFormat.weekday(reset)) \(UsageFormat.time(reset))")
+                        .font(.system(size: 17, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                } else if let minutes = quota.minutesUntilReset(from: now) {
                     Text(minutes == 0 ? "Reset pending" :
                          "\(quota.level == .reached ? "Back in" : "Resets in") \(UsageFormat.duration(minutes))")
                         .font(.system(size: 17, weight: .semibold))
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                 }
-                if !stale, let pace = quota.pace(at: now) {
+                if quota.durationMinutes != 300 {
+                    Text("No 5-hour window reported")
+                        .font(.system(size: 11.5))
+                        .foregroundStyle(.white.opacity(0.45))
+                } else if !stale, let pace = quota.pace(at: now) {
                     let emphasis = pace != .comfortable
                     let ink = emphasis ? provider.tint : .white.opacity(0.75)
-                    Label(pace.title, systemImage: "chart.line.uptrend.xyaxis")
-                        .font(.system(size: 11, weight: .medium))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                        .foregroundStyle(ink)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(emphasis ? provider.tint.opacity(0.16) : .white.opacity(0.07), in: Capsule())
+                    HStack(spacing: 5) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .accessibilityHidden(true)
+                        Text(pace.title)
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                    .foregroundStyle(ink)
+                    .padding(.leading, 7)
+                    .padding(.trailing, 9)
+                    .padding(.vertical, 3)
+                    .background(emphasis ? provider.tint.opacity(0.16) : .white.opacity(0.07), in: Capsule())
                 }
             }
             Spacer(minLength: 0)
         }
         .frame(height: 84)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(provider.name) \(quota.durationMinutes == 300 ? "5-hour session" : "weekly limit") \(quota.percentage) used")
+        .accessibilityValue(quota.resetsAt.map { "Resets \(UsageFormat.weekday($0)) \(UsageFormat.time($0))" } ?? "")
     }
 
     private func quotaRow(_ quota: QuotaWindow, provider: Provider) -> some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 6) {
             HStack(spacing: 4) {
                 Text(quota.title).foregroundStyle(.white.opacity(0.85))
                 Spacer(minLength: 3)
@@ -248,26 +257,27 @@ struct NotchView: View {
             .minimumScaleFactor(0.83)
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(.white.opacity(0.08))
-                    Capsule().fill(provider.tint).frame(width: geometry.size.width * quota.fractionUsed)
+                    RoundedRectangle(cornerRadius: 3).fill(.white.opacity(0.08))
+                    RoundedRectangle(cornerRadius: 3).fill(provider.tint)
+                        .frame(width: quota.fillWidth(in: geometry.size.width, minimum: 4))
                 }
             }
             .frame(height: 6)
             .accessibilityHidden(true)
         }
-        .frame(height: 36, alignment: .top)
         .accessibilityElement(children: .combine)
     }
 
     private func metric(_ label: String, value: String, help: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(label).font(.system(size: 10.5)).foregroundStyle(secondary)
             Text(value).font(.system(size: 14, weight: .semibold))
         }
         .lineLimit(1)
         .minimumScaleFactor(0.8)
-        .padding(.horizontal, 9)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(.white.opacity(0.045), in: RoundedRectangle(cornerRadius: 10))
         .help(help)
         .accessibilityElement(children: .combine)
@@ -279,7 +289,7 @@ struct NotchView: View {
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(.white.opacity(selected ? 1 : 0.77))
                 .frame(width: 24, height: 24)
-                .background(.white.opacity(selected ? 0.19 : 0.06), in: RoundedRectangle(cornerRadius: 7))
+                .background(.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 7))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

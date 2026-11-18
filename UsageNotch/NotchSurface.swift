@@ -57,7 +57,7 @@ final class NotchSurface: NSView {
         return path?.contains(convert(point, from: nil)) == true
     }
 
-    func show(size: CGSize, centerOffset: CGFloat, expanded: Bool, animated: Bool) {
+    func show(size: CGSize, style: CompactStyle, expanded: Bool, animated: Bool) {
         let current = backdrop.presentation()
         let previous = current?.path ?? backdrop.path
         let shadow = current?.shadowOpacity ?? backdrop.shadowOpacity
@@ -65,9 +65,10 @@ final class NotchSurface: NSView {
         let scale = window?.backingScaleFactor ?? 2
 
         var transform = CGAffineTransform(
-            a: 1, b: 0, c: 0, d: -1, tx: (bounds.width - size.width) / 2 + centerOffset, ty: bounds.height
+            a: 1, b: 0, c: 0, d: -1,
+            tx: (bounds.width - size.width) / 2, ty: bounds.height
         )
-        guard let target = NotchShape(progress: expanded ? 1 : 0)
+        guard let target = NotchShape(style: style, progress: expanded ? 1 : 0)
             .path(in: CGRect(origin: .zero, size: size)).cgPath.copy(using: &transform) else { return }
 
         CATransaction.begin()

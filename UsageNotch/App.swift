@@ -21,6 +21,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         notch = NotchPanel(store: store)
+        notch?.installMainMenu()
         notch?.reposition()
         notch?.playFirstLaunchMark()
         watcher = UsageLogWatcher { [weak store] in store?.logsChanged() }
@@ -66,7 +67,7 @@ private final class NotchPanel: NSObject {
     private let surface = NotchSurface()
     private let presentation = NotchPresentation()
     private var placement: Placement?
-    private var compactLayout = CompactNotchLayout()
+    private var compactWidth: CGFloat = 0
     private var hoverTask: Task<Void, Never>?
     private var displayLink: CADisplayLink?
     private var globalMouseMonitor: Any?
@@ -76,8 +77,9 @@ private final class NotchPanel: NSObject {
     private var pinned: Bool { presentation.pinned }
     private var menuOpen = false
     private var aboutWindow: NSWindow?
+    private var settingsWindow: NSWindow?
     private var opensOnHover: Bool {
-        !UserDefaults.standard.bool(forKey: "opensOnClickOnly")
+        store.preferences.opensOnHover
     }
 
     init(store: UsageStore) {
@@ -126,29 +128,24 @@ private final class NotchPanel: NSObject {
     func reposition() {
         hoverTask?.cancel()
         stopTrackingShape()
-        let screens = NSScreen.screens
-        let screen = screens.first {
-            guard let number = $0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
-            return $0.safeAreaInsets.top > 0 && CGDisplayIsBuiltin(number.uint32Value) != 0
-        } ?? screens.first
-        guard let screen else {
+        guard let screen = NSScreen.usageDisplay(in: NSScreen.screens, preferred: store.preferences.preferredDisplay) else {
             placement = nil
             panel.orderOut(nil)
             return
         }
         let placement = Placement(screen)
         self.placement = placement
-        compactLayout = EdgeLight.compactLayout(cameraWidth: placement.cameraWidth, store: store)
+        compactWidth = placement.compactStyle.notchWidth ?? 0
         inside = false
         presentation.animates = false
         presentation.expanded = pinned
         panel.setFrame(placement.frame, display: false)
         let host = NotchHostingView(rootView: NotchView(
-            store: store, cameraWidth: placement.cameraWidth, detailWidth: placement.detailWidth,
+            store: store, compactStyle: placement.compactStyle, detailWidth: placement.detailWidth,
             presentation: presentation,
             togglePin: { [weak self] in self?.togglePin() },
             openSettings: { [weak self] in self?.settingsMenu() },
-            compactLayoutChanged: { [weak self] in self?.updateCompactLayout($0) }
+            compactWidthChanged: { [weak self] in self?.updateCompactWidth($0) }
         ))
         host.sizingOptions = []
         surface.install(host)
@@ -157,17 +154,16 @@ private final class NotchPanel: NSObject {
         updatePointer()
     }
 
-    private func updateCompactLayout(_ layout: CompactNotchLayout) {
-        guard layout != compactLayout else { return }
-        compactLayout = layout
-        guard let placement, !expanded else { return }
+    private func updateCompactWidth(_ width: CGFloat) {
+        guard let placement, case .pill = placement.compactStyle, width > 0, width != compactWidth else { return }
+        compactWidth = width
+        guard !expanded else { return }
         showShape(on: placement, animated: false)
         updatePointer()
     }
 
     private func showShape(on placement: Placement, animated: Bool) {
-        surface.show(size: placement.size(expanded: expanded, collapsedWidth: compactLayout.width),
-                     centerOffset: expanded ? 0 : compactLayout.centerOffset,
+        surface.show(size: placement.size(expanded: expanded, compactWidth: compactWidth), style: placement.compactStyle,
                      expanded: expanded, animated: animated)
     }
 
@@ -229,11 +225,10 @@ private final class NotchPanel: NSObject {
 
     private func settingsMenu() {
         let menu = NSMenu()
-        let hover = item("Open on hover", action: #selector(toggleHoverSetting), in: menu)
-        hover.state = opensOnHover ? .on : .off
+        item("Settings…", action: #selector(showSettings), in: menu).keyEquivalent = ","
         menu.addItem(.separator())
         item("About \(displayName)", action: #selector(showAbout), in: menu)
-        item("Quit \(displayName)", action: #selector(quit), in: menu)
+        item("Quit \(displayName)", action: #selector(quit), in: menu).keyEquivalent = "q"
         showMenu(menu)
     }
 
@@ -255,11 +250,45 @@ private final class NotchPanel: NSObject {
         scheduleHover()
     }
 
-    @objc private func toggleHoverSetting() {
-        UserDefaults.standard.set(opensOnHover, forKey: "opensOnClickOnly")
-        if !opensOnHover && !pinned {
-            setExpanded(false)
+    @objc private func showSettings() {
+        if settingsWindow == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 600, height: 440),
+                styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false
+            )
+            window.title = "General"
+            window.isReleasedWhenClosed = false
+            window.appearance = NSAppearance(named: .darkAqua)
+            window.contentViewController = NSHostingController(rootView: SettingsView(
+                store: store,
+                generalChanged: { [weak self] in self?.settingsChanged() },
+                titleChanged: { [weak window] title in window?.title = title }
+            ))
+            window.center()
+            settingsWindow = window
         }
+        NSApp.activate(ignoringOtherApps: true)
+        settingsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    private func settingsChanged() {
+        reposition()
+        if !opensOnHover && !pinned { setExpanded(false) }
+        scheduleHover()
+    }
+
+    func installMainMenu() {
+        let main = NSMenu()
+        let application = NSMenu()
+        let root = NSMenuItem()
+        root.submenu = application
+        main.addItem(root)
+        item("About \(displayName)", action: #selector(showAbout), in: application)
+        application.addItem(.separator())
+        item("Settings…", action: #selector(showSettings), in: application).keyEquivalent = ","
+        application.addItem(.separator())
+        item("Quit \(displayName)", action: #selector(quit), in: application).keyEquivalent = "q"
+        NSApp.mainMenu = main
     }
 
     @objc private func showAbout() {
@@ -295,13 +324,13 @@ private final class PassivePanel: NSPanel {
 private struct Placement {
     let centerX: CGFloat
     let top: CGFloat
-    let cameraWidth: CGFloat
+    let compactStyle: CompactStyle
     let detailWidth: CGFloat
 
-    func size(expanded: Bool, collapsedWidth: CGFloat) -> CGSize {
+    func size(expanded: Bool, compactWidth: CGFloat) -> CGSize {
         expanded
             ? CGSize(width: detailWidth, height: NotchShape.expandedHeight)
-            : CGSize(width: collapsedWidth, height: NotchShape.compactHeight)
+            : CGSize(width: compactWidth, height: compactStyle.height)
     }
 
     var frame: NSRect {
@@ -312,16 +341,14 @@ private struct Placement {
 
     @MainActor
     init(_ screen: NSScreen) {
-        let notchHeight = screen.safeAreaInsets.top
+        compactStyle = screen.compactStyle
         if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea,
            right.minX > left.maxX {
             centerX = (left.maxX + right.minX) / 2
-            cameraWidth = right.minX - left.maxX
         } else {
             centerX = screen.frame.midX
-            cameraWidth = notchHeight > 0 ? 185 : 0
         }
         detailWidth = min(NotchShape.expandedWidth, screen.frame.width - 20)
-        top = notchHeight > 0 ? screen.frame.maxY : screen.frame.maxY - NSStatusBar.system.thickness - 4
+        top = screen.frame.maxY
     }
 }

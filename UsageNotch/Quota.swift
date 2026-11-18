@@ -26,6 +26,10 @@ struct QuotaWindow: Identifiable, Sendable {
 
     var fractionUsed: Double { min(used / 100, 1) }
 
+    func fillWidth(in width: Double, minimum: Double) -> Double {
+        used == 0 ? 0 : min(width, max(minimum, width * fractionUsed))
+    }
+
     var level: QuotaLevel {
         if used >= 100 { return .reached }
         if used >= 80 { return .warning }
@@ -34,6 +38,14 @@ struct QuotaWindow: Identifiable, Sendable {
 
     func minutesUntilReset(from now: Date) -> Int? {
         resetsAt.map { Int(max(0, $0.timeIntervalSince(now) / 60).rounded(.up)) }
+    }
+
+    func compactReset(at now: Date) -> CompactQuotaReset? {
+        switch durationMinutes {
+        case 300: minutesUntilReset(from: now).map(CompactQuotaReset.countdown)
+        case 10_080: resetsAt.map(CompactQuotaReset.weekly)
+        default: nil
+        }
     }
 
     func pace(at now: Date) -> QuotaPace? {
@@ -53,6 +65,41 @@ struct QuotaWindow: Identifiable, Sendable {
 
     var percentage: String {
         "\(min(used, 100).rounded(.down).formatted(.number.precision(.fractionLength(0))))%"
+    }
+
+    var compactPeriod: String? {
+        switch durationMinutes {
+        case 300: "5h"
+        case 10_080: "wk"
+        default: nil
+        }
+    }
+}
+
+enum CompactQuotaReset {
+    case countdown(Int)
+    case weekly(Date)
+
+    var text: String {
+        switch self {
+        case .countdown(let minutes): UsageFormat.duration(minutes)
+        case .weekly(let date): "\(UsageFormat.weekday(date)) \(UsageFormat.time(date))"
+        }
+    }
+
+    var spoken: String {
+        switch self {
+        case .countdown(let minutes):
+            let hours = minutes / 60
+            let remainder = minutes % 60
+            let hourText = "\(hours) \(hours == 1 ? "hour" : "hours")"
+            let minuteText = "\(remainder) \(remainder == 1 ? "minute" : "minutes")"
+            let duration = hours == 0 ? minuteText : (remainder == 0 ? hourText : "\(hourText) \(minuteText)")
+            return "resets in \(duration)"
+        case .weekly(let date):
+            let weekday = date.formatted(.dateTime.weekday(.wide).locale(UsageFormat.locale))
+            return "resets \(weekday) \(UsageFormat.time(date))"
+        }
     }
 }
 
@@ -90,6 +137,22 @@ struct UsageReading: Sendable {
 
     var compactQuota: QuotaWindow? {
         session ?? otherLimits.first { $0.id != "cloud" && $0.durationMinutes == 10_080 }
+    }
+
+    var detailLimits: [QuotaWindow] {
+        otherLimits.filter { $0.id != compactQuota?.id }
+    }
+
+    var reportedLimitsDescription: String {
+        let windows = (session.map { [$0] } ?? []) + otherLimits
+        var labels: [String] = []
+        if session != nil { labels.append("5-hour session") }
+        let weekly = windows.filter { $0.durationMinutes == 10_080 || $0.title.localizedCaseInsensitiveContains("weekly") }
+        if !weekly.isEmpty { labels.append(weekly.count == 1 ? "weekly limit" : "weekly limits") }
+        labels += windows.filter { window in
+            window.id != session?.id && !weekly.contains(where: { $0.id == window.id })
+        }.map { $0.title.lowercased() }
+        return labels.joined(separator: " and ")
     }
 
     func didResetCompactQuota(since previous: UsageReading) -> Bool {

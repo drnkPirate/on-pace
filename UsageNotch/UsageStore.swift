@@ -3,6 +3,7 @@ import Observation
 
 @MainActor @Observable
 final class UsageStore {
+    let preferences: UsagePreferences
     private var states: [Provider: UsageState] = [:]
     private(set) var compactQuotaResets: [Provider: Date] = [:]
     private(set) var history: LocalUsageSnapshot?
@@ -11,6 +12,10 @@ final class UsageStore {
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
     @ObservationIgnored private var historyTask: Task<Void, Never>?
     @ObservationIgnored private var logsChangedDuringRead = false
+
+    init(preferences: UsagePreferences = UsagePreferences()) {
+        self.preferences = preferences
+    }
 
     func state(for provider: Provider) -> UsageState {
         states[provider] ?? .loading

@@ -1,22 +1,82 @@
 import AppKit
 import SwiftUI
 
+extension NSScreen {
+    static func usageDisplay(in screens: [NSScreen], preferred: String) -> NSScreen? {
+        screens.first { $0.displayIdentifier == preferred } ?? screens.first
+    }
+
+    var displayIdentifier: String? {
+        guard let number = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber,
+              let uuid = CGDisplayCreateUUIDFromDisplayID(number.uint32Value)?.takeRetainedValue() else { return nil }
+        return CFUUIDCreateString(nil, uuid) as String
+    }
+
+    var compactStyle: CompactStyle {
+        CompactStyle(topInset: safeAreaInsets.top, leftArea: auxiliaryTopLeftArea, rightArea: auxiliaryTopRightArea)
+    }
+}
+
+enum CompactStyle {
+    case notch(cameraWidth: CGFloat)
+    case pill
+
+    static let previewNotch = Self.notch(cameraWidth: 185)
+    static let notchBodyWidth: CGFloat = 392
+
+    init(topInset: CGFloat, leftArea: CGRect?, rightArea: CGRect?) {
+        if let leftArea, let rightArea, rightArea.minX > leftArea.maxX {
+            self = .notch(cameraWidth: rightArea.minX - leftArea.maxX)
+        } else if topInset > 0 || leftArea != nil || rightArea != nil {
+            self = Self.previewNotch
+        } else {
+            self = .pill
+        }
+    }
+
+    var height: CGFloat {
+        switch self {
+        case .notch: 34
+        case .pill: 30
+        }
+    }
+
+    var notchWidth: CGFloat? {
+        guard case .notch = self else { return nil }
+        return Self.notchBodyWidth + 2 * shoulderWidth
+    }
+
+    var shoulderWidth: CGFloat {
+        switch self {
+        case .notch: 12
+        case .pill: 10
+        }
+    }
+
+    var bottomRadius: CGFloat {
+        switch self {
+        case .notch: 12
+        case .pill: 10
+        }
+    }
+}
+
 /// The visible outline is also the AppKit mouse hit region.
 struct NotchShape: Shape {
-    static let shoulderWidth: CGFloat = 12
-    static let compactWidth: CGFloat = 360 + 2 * shoulderWidth
-    static let compactHeight: CGFloat = 34
     static let expandedWidth: CGFloat = 712
     static let expandedHeight: CGFloat = 712
+    static let expandedShoulderWidth: CGFloat = 12
     static let shadowSide: CGFloat = 48
     static let shadowBottom: CGFloat = 84
+    let style: CompactStyle
     let progress: CGFloat
 
     func path(in rect: CGRect) -> Path {
+        guard rect.width > 0 else { return Path() }
         let bottom = rect.maxY
         let right = rect.maxX
-        let s = min(Self.shoulderWidth, bottom / 2)
-        let r = min(12 + 18 * progress, bottom - s)
+        let s = min(style.shoulderWidth + (Self.expandedShoulderWidth - style.shoulderWidth) * progress, bottom / 2)
+        let r = min(style.bottomRadius + (30 - style.bottomRadius) * progress, bottom - s)
         var path = Path()
         path.move(to: .zero)
         path.addLine(to: CGPoint(x: right, y: 0))
@@ -30,103 +90,170 @@ struct NotchShape: Shape {
         path.closeSubpath()
         return path
     }
-
-
-}
-
-struct CompactNotchLayout: Equatable {
-    var width = NotchShape.compactWidth
-    var centerOffset: CGFloat = 0
 }
 
 struct EdgeLight: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let store: UsageStore
+    let style: CompactStyle
     let now: Date
     var animateHighlights = true
-    let action: () -> Void
+    var action: (() -> Void)? = nil
 
-    private var connected: [Provider] {
-        Provider.allCases.filter { !store.state(for: $0).isDisconnected }
+    private var onlyProvider: Provider? {
+        let providers = store.preferences.enabledProviders
+        return providers.count == 1 ? providers.first : nil
     }
 
     private static let logoSize: CGFloat = 14
     private static let barWidth: CGFloat = 30
-    private static let itemSpacing: CGFloat = 7
-    private static let percentageSize: CGFloat = 12
-    static let edgeInset: CGFloat = NotchShape.shoulderWidth + 16
-    @MainActor
-    static func compactLayout(cameraWidth: CGFloat, store: UsageStore) -> CompactNotchLayout {
-        let font = NSFont.monospacedDigitSystemFont(ofSize: percentageSize, weight: .semibold)
-        func percentageWidth(_ provider: Provider) -> CGFloat? {
-            guard let percentage = store.state(for: provider).reading?.compactQuota?.percentage else { return nil }
-            return ceil((percentage as NSString).size(withAttributes: [.font: font]).width)
-        }
-        let claude = percentageWidth(.claude)
-        let codex = percentageWidth(.codex)
-        let base = cameraWidth / 2 + edgeInset + logoSize + barWidth + 2 * itemSpacing + 2
-        let left = base + (claude ?? codex ?? 0)
-        let right = base + (codex ?? claude ?? 0)
-        let width = max(NotchShape.compactWidth, left + right)
-        let half = width / 2
-        // Place the outline as close to centered as the two camera clearances allow.
-        return CompactNotchLayout(width: width, centerOffset: min(half - left, max(0, right - half)))
-    }
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 0) {
-                side(.claude)
-                Spacer(minLength: 0)
-                side(.codex)
+        if let action {
+            Button(action: action) {
+                contents.contentShape(Rectangle())
             }
-            .padding(.horizontal, Self.edgeInset)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .accessibilityLabel(accessibilitySummary)
+        } else {
+            contents
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(accessibilitySummary)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(accessibilitySummary)
     }
 
-    private func side(_ provider: Provider) -> some View {
-        let left = provider == .claude
-        let state = store.state(for: provider)
-        return HStack(spacing: Self.itemSpacing) {
-            if connected.contains(provider) {
-                if left { ToolSymbol(provider: provider, size: Self.logoSize) }
-                if let quota = state.reading?.compactQuota {
-                    if !left { percentage(quota) }
-                    bar(quota, provider: provider, alignment: left ? .leading : .trailing)
-                    if left { percentage(quota) }
-                }
-                if !left { ToolSymbol(provider: provider, size: Self.logoSize) }
+    private var contents: some View {
+        Group {
+            switch style {
+            case .notch(let cameraWidth): notchContents(cameraWidth: cameraWidth)
+            case .pill: pillContents
             }
         }
-        .fixedSize(horizontal: true, vertical: false)
+        .frame(height: style.height)
+    }
+
+    private func notchContents(cameraWidth: CGFloat) -> some View {
+        let clearance = min(cameraWidth, CompactStyle.notchBodyWidth)
+        let sideWidth = (CompactStyle.notchBodyWidth - clearance) / 2
+        return HStack(spacing: 0) {
+            notchSide(width: sideWidth, alignment: .leading) { spacing in
+                reading(onlyProvider ?? .claude, spacing: spacing)
+            }
+            Color.clear.frame(width: clearance)
+            notchSide(width: sideWidth, alignment: .trailing) { spacing in
+                if let onlyProvider {
+                    if let reset = reset(for: onlyProvider) { resetReading(reset, provider: onlyProvider) }
+                } else {
+                    reading(.codex, mirrored: true, spacing: spacing)
+                }
+            }
+        }
+        .padding(.horizontal, style.shoulderWidth)
+    }
+
+    private func notchSide<Content: View>(
+        width: CGFloat, alignment: Alignment, @ViewBuilder content: (CGFloat) -> Content
+    ) -> some View {
+        // Keep the whole reading legible when an unusually wide housing leaves very little room.
+        let layoutWidth = max(width, 103)
+        let spacing = min(7, 2.5 + max(0, layoutWidth - 104) / 2)
+        let anchor: UnitPoint = alignment == .leading ? .leading : .trailing
+        return NotchSlot(width: layoutWidth, anchor: anchor) {
+            content(spacing)
+        }
+        .scaleEffect(width / layoutWidth, anchor: anchor)
+        .frame(width: width, height: style.height, alignment: alignment)
+        .clipped()
+    }
+
+    private var pillContents: some View {
+        HStack(spacing: 12) {
+            if let onlyProvider {
+                reading(onlyProvider)
+                if let reset = reset(for: onlyProvider) {
+                    divider
+                    resetReading(reset, provider: onlyProvider)
+                }
+            } else {
+                let claudeConnected = !store.state(for: .claude).isDisconnected
+                let codexConnected = !store.state(for: .codex).isDisconnected
+                if claudeConnected { reading(.claude) }
+                if claudeConnected && codexConnected { divider }
+                if codexConnected { reading(.codex, mirrored: true) }
+            }
+        }
+        .padding(.horizontal, style.shoulderWidth + 12)
+        .fixedSize()
+    }
+
+    private var divider: some View {
+        Rectangle().fill(.white.opacity(0.16)).frame(width: 1, height: 12)
+    }
+
+    private func reading(_ provider: Provider, mirrored: Bool = false, spacing: CGFloat = 7) -> some View {
+        let state = store.state(for: provider)
+        return HStack(spacing: spacing) {
+            if !state.isDisconnected {
+                if !mirrored { ToolSymbol(provider: provider, size: Self.logoSize) }
+                if let quota = state.reading?.compactQuota {
+                    if mirrored { percentage(quota) }
+                    bar(quota, provider: provider, mirrored: mirrored)
+                    if !mirrored { percentage(quota) }
+                }
+                if mirrored { ToolSymbol(provider: provider, size: Self.logoSize) }
+            }
+        }
         .opacity(stale(provider) ? 0.4 : 1)
     }
 
-    private func percentage(_ quota: QuotaWindow) -> some View {
-        Text(quota.percentage)
-            .font(.system(size: Self.percentageSize, weight: .semibold))
-            .monospacedDigit()
-            .foregroundStyle(.white)
-            .lineLimit(1)
-            .minimumScaleFactor(0.90)
-            .layoutPriority(1)
-            .accessibilityHidden(true)
+    private func reset(for provider: Provider) -> CompactQuotaReset? {
+        let state = store.state(for: provider)
+        return state.isDisconnected ? nil : state.reading?.compactQuota?.compactReset(at: now)
     }
 
-    private func bar(_ quota: QuotaWindow, provider: Provider, alignment: Alignment) -> some View {
+    private func resetReading(_ reset: CompactQuotaReset, provider: Provider) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: "arrow.clockwise")
+                .font(.system(size: 11))
+                .foregroundStyle(.white.opacity(0.50))
+            Text(reset.text)
+                .font(.system(size: 12, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(.white.opacity(0.85))
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.90)
+        .opacity(stale(provider) ? 0.4 : 1)
+        .accessibilityHidden(true)
+    }
+
+    private func percentage(_ quota: QuotaWindow) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 3) {
+            Text(quota.percentage)
+                .font(.system(size: 12, weight: .semibold))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+            if let period = quota.compactPeriod {
+                Text(period)
+                    .font(.system(size: 9.5, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.50))
+            }
+        }
+        .lineLimit(1)
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityHidden(true)
+    }
+
+    private func bar(_ quota: QuotaWindow, provider: Provider, mirrored: Bool) -> some View {
         let isStale = stale(provider)
         let reached = quota.level == .reached && (quota.resetsAt.map { $0 > now } ?? true)
-        return ZStack(alignment: alignment) {
+        return ZStack(alignment: mirrored ? .trailing : .leading) {
             Capsule().fill(.white.opacity(0.16))
             if quota.fractionUsed > 0 {
                 Throb(enabled: reached && !isStale && animateHighlights) {
                     Capsule()
                         .fill(provider.tint)
-                        .frame(width: max(2, Self.barWidth * quota.fractionUsed), height: 4)
+                        .frame(width: quota.fillWidth(in: Self.barWidth, minimum: 3), height: 4)
                         .shadow(
                             color: provider.tint.opacity(quota.level == .normal || isStale ? 0 : 0.8),
                             radius: reached ? 8 : 5
@@ -137,7 +264,7 @@ struct EdgeLight: View {
         .frame(width: Self.barWidth, height: 4)
         .overlay {
             if animateHighlights && !reduceMotion {
-                ResetRipple(provider: provider, reset: store.compactQuotaResets[provider])
+                ResetRipple(provider: provider, mirrored: mirrored, reset: store.compactQuotaResets[provider])
             }
         }
         .accessibilityHidden(true)
@@ -147,21 +274,43 @@ struct EdgeLight: View {
         store.state(for: provider).reading?.isStale(at: now) == true
     }
 
-    private var accessibilitySummary: String {
+    var accessibilitySummary: String {
+        let connected = store.preferences.enabledProviders.filter { !store.state(for: $0).isDisconnected }
         let descriptions = connected.map { provider in
             guard let quota = store.state(for: provider).reading?.compactQuota else {
                 return "\(provider.name) usage unavailable"
             }
             let age = stale(provider) ? ", last known reading" : ""
-            let period = quota.durationMinutes == 300 ? "session" : "weekly limit"
-            return "\(provider.name) \(quota.percentage) of \(period)\(age)"
+            let period = quota.durationMinutes == 300 ? "5-hour session" : "weekly limit"
+            let reset = onlyProvider == provider ? self.reset(for: provider).map { ", \($0.spoken)" } ?? "" : ""
+            return "\(provider.name) \(quota.percentage) of \(period)\(age)\(reset)"
         }
-        return "AI usage: " + (descriptions.isEmpty ? "no readings" : descriptions.joined(separator: ", ")) + ". Show details"
+        let readings = descriptions.isEmpty ? "no readings" : descriptions.joined(separator: ", ")
+        return "AI usage: \(readings)." + (action == nil ? "" : " Show details")
+    }
+}
+
+private struct NotchSlot: Layout {
+    let width: CGFloat
+    let anchor: UnitPoint
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        CGSize(width: width, height: subviews.first?.sizeThatFits(.unspecified).height ?? 0)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard let content = subviews.first else { return }
+        let idealWidth = content.sizeThatFits(.unspecified).width
+        let padding = min(16, max(0, width - idealWidth))
+        let x = anchor == .leading ? bounds.minX + padding : bounds.maxX - padding
+        content.place(at: CGPoint(x: x, y: bounds.midY), anchor: anchor,
+                      proposal: ProposedViewSize(width: width - padding, height: bounds.height))
     }
 }
 
 private struct ResetRipple: View {
     let provider: Provider
+    let mirrored: Bool
     let reset: Date?
 
     var body: some View {
@@ -173,7 +322,7 @@ private struct ResetRipple: View {
                 LinearGradient(colors: [.clear, provider.tint, .clear],
                                startPoint: .leading, endPoint: .trailing)
                     .frame(width: crest)
-                    .offset(x: (width - crest) / 2 + (provider == .claude ? distance : -distance))
+                    .offset(x: (width - crest) / 2 + (mirrored ? -distance : distance))
                     .opacity(0.85 * sin(.pi * progress))
             } keyframes: { _ in
                 KeyframeTrack(\.self) {
@@ -207,9 +356,10 @@ struct ToolSymbol: View {
     var size: CGFloat = 14
 
     var body: some View {
-        Text(provider == .claude ? "CL" : "CX")
-            .font(.system(size: size * 0.64, weight: .bold))
-            .foregroundStyle(provider.tint)
+        Image(decorative: provider == .claude ? "ClaudeLogo" : "CodexLogo")
+            .resizable()
+            .interpolation(.high)
+            .scaledToFit()
             .frame(width: size, height: size)
             .accessibilityHidden(true)
     }

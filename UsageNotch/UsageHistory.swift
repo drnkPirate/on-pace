@@ -49,14 +49,14 @@ struct UsageHistory {
     let values: [Provider: [UsageDay]]
     let rows: [Row]
 
-    init(snapshot: LocalUsageSnapshot, period: HistoryPeriod) {
+    init(snapshot: LocalUsageSnapshot, period: HistoryPeriod, providers: [Provider] = Provider.allCases) {
         let count = period.rawValue
         let end = snapshot.days.count
         let currentRange = (end - count)..<end
         let previousRange = (end - 2 * count)..<(end - count)
         days = Array(snapshot.days[currentRange])
-        values = snapshot.values.mapValues { Array($0.daily[currentRange]) }
-        let toolRows = Provider.allCases.map { provider in
+        values = snapshot.values.filter { providers.contains($0.key) }.mapValues { Array($0.daily[currentRange]) }
+        let toolRows = providers.map { provider in
             let usage = snapshot.values[provider]
             return Row(
                 provider: provider,
@@ -72,7 +72,7 @@ struct UsageHistory {
         }
         rows = toolRows + [Row(provider: nil, current: values.isEmpty ? nil : current,
                               previous: values.isEmpty ? nil : previous,
-                              incompleteCoverage: !values.isEmpty && values.count < Provider.allCases.count)]
+                              incompleteCoverage: !values.isEmpty && values.count < providers.count)]
     }
 
     private static func summarize(_ days: ArraySlice<UsageDay>) -> Totals {

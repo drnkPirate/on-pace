@@ -8,7 +8,7 @@ struct ActivityChart: View {
     private var start: Date? { measuredAt?.addingTimeInterval(-5 * 3600) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 7) {
             HStack {
                 Text("Activity · last 5 hours")
                 Spacer(minLength: 3)
@@ -47,14 +47,14 @@ struct ActivityChart: View {
                     Spacer()
                     Text("now")
                 }
-                .font(.system(size: 10))
+                .font(.system(size: 10.5))
                 .foregroundStyle(.white.opacity(0.53))
                 .accessibilityHidden(true)
             } else {
                 Text(measuredAt == nil ? "Reading local usage…" : "No recent local usage")
                     .font(.system(size: 11))
                     .foregroundStyle(.white.opacity(0.55))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: 40)
             }
         }
         .accessibilityElement(children: .combine)
