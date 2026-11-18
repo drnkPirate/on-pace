@@ -20,7 +20,7 @@ Hover over the notch to see reset times, recent activity, and usage history.
   <img src="docs/images/on-pace-detail.png" width="820" alt="Expanded panel showing a Claude session ring and a Codex weekly limit ring, alongside activity charts and seven-day history">
 </p>
 
-The screenshots show sample usage. The Codex ring shows the weekly limit when a five-hour limit is unavailable.
+The screenshots show the local build with Claude and Codex logos and sample usage. The Codex ring shows the weekly limit when a five-hour limit is unavailable.
 
 ## Install
 
