@@ -170,7 +170,8 @@ private final class NotchPanel: NSObject {
     private func updatePointer() {
         guard placement != nil else { return }
         let screenPoint = NSEvent.mouseLocation
-        let hit = panel.frame.contains(screenPoint) && surface.contains(panel.convertPoint(fromScreen: screenPoint))
+        // A fast move can leave the pointer exactly on the screen's top edge.
+        let hit = NSMouseInRect(screenPoint, panel.frame, false) && surface.contains(panel.convertPoint(fromScreen: screenPoint))
         if panel.ignoresMouseEvents == hit { panel.ignoresMouseEvents = !hit }
         guard inside != hit else { return }
         inside = hit
