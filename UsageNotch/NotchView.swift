@@ -3,12 +3,14 @@ import SwiftUI
 struct NotchView: View {
     let store: UsageStore
     let compactStyle: CompactStyle
-    let detailWidth: CGFloat
+    let detailSize: CGSize
     let presentation: NotchPresentation
     let togglePin: () -> Void
     let openDashboard: () -> Void
     let openSettings: () -> Void
     let compactWidthChanged: (CGFloat) -> Void
+    let expandedHeightChanged: (CGFloat) -> Void
+    @State private var dashboardHeight: CGFloat?
 
     private var expanded: Bool { presentation.expanded }
     private var pinned: Bool { presentation.pinned }
@@ -25,7 +27,8 @@ struct NotchView: View {
                     .accessibilityHidden(expanded)
 
                 details(at: timeline.date)
-                    .frame(width: detailWidth, height: NotchShape.expandedHeight, alignment: .top)
+                    .onGeometryChange(for: CGFloat.self, of: { $0.size.height }, action: expandedHeightChanged)
+                    .frame(width: detailSize.width, height: detailSize.height, alignment: .top)
                     .offset(y: expanded ? 0 : 8)
                     .opacity(expanded ? 1 : 0)
                     .animation(presentation.animates ? .easeOut(duration: expanded ? 0.19 : 0.11)
@@ -97,7 +100,9 @@ struct NotchView: View {
 
             ScrollView {
                 UsageDashboard(store: store, now: now, animateHighlights: expanded)
+                    .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { dashboardHeight = $0 }
             }
+            .frame(maxHeight: dashboardHeight)
         }
         .padding(.horizontal, NotchShape.expandedShoulderWidth + 20)
         .padding(.bottom, 18)

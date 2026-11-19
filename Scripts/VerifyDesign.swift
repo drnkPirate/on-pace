@@ -68,10 +68,13 @@ enum VerifyDesign {
         }
         let presentation = NotchPresentation()
         presentation.expanded = true
-        func panel(_ style: CompactStyle = .previewNotch) -> some View {
-            NotchView(store: store, compactStyle: style, detailWidth: NotchShape.expandedWidth,
-                      presentation: presentation, togglePin: {}, openDashboard: {}, openSettings: {}, compactWidthChanged: { _ in })
-                .frame(width: NotchShape.expandedWidth, height: NotchShape.expandedHeight)
+        func panel(_ style: CompactStyle = .previewNotch, height: CGFloat = NotchShape.expandedHeight,
+                   onHeight: @escaping (CGFloat) -> Void = { _ in }) -> some View {
+            let size = CGSize(width: NotchShape.expandedWidth, height: height)
+            return NotchView(store: store, compactStyle: style, detailSize: size, presentation: presentation,
+                             togglePin: {}, openDashboard: {}, openSettings: {}, compactWidthChanged: { _ in },
+                             expandedHeightChanged: onHeight)
+                .frame(width: size.width, height: size.height)
                 .background(.black)
         }
         func strip(_ style: CompactStyle, at date: Date = now) -> EdgeLight {
@@ -85,11 +88,24 @@ enum VerifyDesign {
         }
         try await capture(collapsed(cameraScreen), name: "notch-both", output: output)
         try await capture(collapsed(flatScreen), name: "pill-both", output: output)
+        store.record(UsageReading(windows: [weekly], plan: "Max 20×", fetchedAt: now)!, for: .claude)
+        var measuredWeeklyHeight: CGFloat = 0
+        try await capture(panel(onHeight: { measuredWeeklyHeight = $0 }), name: "panel-weekly-limits", output: output)
+        let weeklyOnlyHeight = measuredWeeklyHeight
+        precondition((500...640).contains(weeklyOnlyHeight),
+                     "The weekly-only panel should fit its content, got \(weeklyOnlyHeight) pt")
+        store.record(claude, for: .claude)
         try await capture(panel(), name: "panel-both", output: output)
         try await capture(panel(flatScreen), name: "panel-pill-both", output: output)
         let sonnet = quota("sonnet", "Weekly · Sonnet", 8, 10_080, elapsed: 0.45)
         store.record(UsageReading(windows: [session, weekly, opus, sonnet], plan: "Max 20×")!, for: .claude)
-        try await capture(panel(), name: "panel-all-claude-limits", output: output)
+        var allLimitsHeight: CGFloat = 0
+        try await capture(panel(onHeight: { allLimitsHeight = $0 }), name: "panel-all-claude-limits", output: output)
+        precondition(allLimitsHeight > weeklyOnlyHeight && allLimitsHeight <= NotchShape.expandedHeight)
+        var cappedHeight: CGFloat = 0
+        try await capture(panel(height: 480, onHeight: { cappedHeight = $0 }), name: "panel-short-display", output: output)
+        precondition(cappedHeight == 480, "The scroll viewport should fit the available screen height")
+        print("Panel heights: weekly only \(weeklyOnlyHeight) pt, all limits \(allLimitsHeight) pt, short display \(cappedHeight) pt")
         try await capture(ScrollView {
             UsageDashboard(store: store, now: now).padding(20)
         }.frame(width: 736, height: 712).background(.black), name: "usage-dashboard", output: output)
@@ -148,7 +164,7 @@ enum VerifyDesign {
         store.record(UsageReading(windows: [onPaceToHit], plan: "Pro Lite")!, for: .codex)
         try await capture(panel(), name: "panel-forecast-states", output: output)
         try await capture(collapsed(cameraScreen), name: "notch-forecast-states", output: output)
-        print("PASS: pacing, layout and quota window selection, reset text and narration, minimum fills, provider persistence, last-provider guard, history filtering and totals, update check dates")
+        print("PASS: pacing, adaptive panel height, layout and quota window selection, reset text and narration, minimum fills, provider persistence, last-provider guard, history filtering and totals, update check dates")
     }
 
     static func verifyUpdateCheckDates() {
