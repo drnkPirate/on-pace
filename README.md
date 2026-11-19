@@ -6,27 +6,44 @@
 
 <p align="center">Claude Code and Codex usage at a glance in your Mac's notch.</p>
 
-<p align="center"><a href="https://github.com/sandergo90/on-pace/releases">Download for macOS</a> · macOS 14+</p>
+<p align="center">A fork of <a href="https://github.com/sandergo90/on-pace">Sander’s On pace.</a> · <a href="#build-from-source">Build for macOS 14+</a></p>
+
+## What changed in this fork
+
+- **Both bars fill left to right.** Claude and Codex agree on which way progress goes. We took the controversial position that one direction would do.
+- **The quota rings are retired.** The expanded notch and the dashboard put usage and pace on the same straight scale. The percentages are taking it well.
+- **A white tick marks even pace.** It moves across the bar as the quota window elapses. If the colored fill passes it, you're on track to run out before reset.
+- **A reset forecast.** At your average rate so far, the app estimates when you'll hit the limit or how much quota you'll have left at reset.
+- **The notch fits its content.** It ends just below the usage history and scrolls when the full breakdown needs more room.
 
 ## See it in action
 
 <p align="center">
-  <img src="docs/images/on-pace-0.1.2-notch.png" width="820" alt="Collapsed notch showing Claude at 68% of its session limit and Codex at 7% of its weekly limit">
+  <img src="docs/images/pacing-notch.png" width="760" alt="Collapsed notch with left-to-right bars for Claude and Codex, each with a white pacing tick">
 </p>
 
 Hover over the notch to see reset times, recent activity, and usage history.
 
 <p align="center">
-  <img src="docs/images/on-pace-0.1.2-detail.png" width="820" alt="Expanded panel showing a Claude session ring and a Codex weekly limit ring, alongside activity charts and seven-day history">
+  <img src="docs/images/pacing-panel.png" width="760" alt="Expanded notch with horizontal quota bars, reset forecasts, activity charts, and a panel that ends directly below the history">
 </p>
 
-The screenshots show sample usage from version 0.1.2.
+<details>
+<summary>See the separate Usage Dashboard</summary>
+
+Use the expand button or **Usage Dashboard** in the gear menu to open it in its own window.
+
+<p align="center">
+  <img src="docs/images/pacing-dashboard.png" width="760" alt="Dashboard showing weekly quota remaining at reset and a forecast for when a five-hour limit will run out">
+</p>
+
+</details>
+
+All screenshots use fictional usage data.
 
 ## Install
 
-1. Open [GitHub Releases](https://github.com/sandergo90/on-pace/releases).
-2. Download the macOS ZIP and unzip it.
-3. Move **On pace.** to Applications and open it.
+[Build this fork from source](#build-from-source) to get the interface shown here. The original app's signed macOS ZIPs are on the [upstream releases page](https://github.com/sandergo90/on-pace/releases).
 
 Use macOS 14 or later on a Mac with Apple silicon or an Intel processor. Install and sign in to the command-line tool for each provider you want to track. [Claude Code setup](https://code.claude.com/docs/en/quickstart) · [Codex setup](https://developers.openai.com/codex/cli)
 
@@ -34,9 +51,6 @@ Use macOS 14 or later on a Mac with Apple silicon or an Intel processor. Install
 
 - The notch shows the reported weekly limit, with the five-hour limit as a fallback.
 - Hover for the breakdown. Click the notch or use the pin to keep it open.
-- The white tick marks how much of the quota window has elapsed. When the colored fill extends to the right of the tick, usage is running ahead of pace.
-- The panel estimates when the limit will be hit or how much quota will be left at reset, using the average rate since the window started.
-- Use the expand button or **Usage Dashboard** in the gear menu to open the dashboard in its own window.
 - Choose **7 days** or **30 days** to compare activity with the preceding period. The app remembers your choice.
 - Use the gear menu to open **Settings…**, **About On pace.**, **Check for Updates…**, or quit.
 - On pace. checks for stable releases at launch and about once a day while running. A dot on the gear shows when an update is available.
@@ -65,7 +79,7 @@ open ".build/xcode/Build/Products/Debug/On pace..app"
 
 If you edit `project.yml`, run `xcodegen generate` to refresh the Xcode project.
 
-## Publish a release
+## Upstream release workflow
 
 Update the app version and increase the build number in `project.yml` in a pull request. Run `xcodegen generate` to update `UsageNotch/Info.plist`. After merging the pull request, tag the merged commit with the matching version and push the tag. For example, use `v0.1.6` for app version `0.1.6`.
 
