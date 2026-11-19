@@ -40,6 +40,7 @@ Use macOS 14 or later on a Mac with Apple silicon or an Intel processor. Install
 - Open **Update Available** and choose **Install Update**. On pace. verifies the download and lets you install it and relaunch.
 - On a display without a camera notch, a compact notch shape sits at the top edge, within the menu bar's height.
 - The small `5h` and `wk` labels identify the period beside each percentage. The panel shows the same limit in its ring.
+- A dimmer stretch shows projected usage at reset, and a white tick marks where it ends.
 - In **Settings > Providers**, choose which providers appear in the notch, panel, and history. At least one stays on.
 - In **Settings > General > Display**, choose the primary display or a specific monitor. The app remembers your choice and uses the primary display when that monitor is disconnected.
 
@@ -64,13 +65,13 @@ If you edit `project.yml`, run `xcodegen generate` to refresh the Xcode project.
 
 ## Publish a release
 
-Update the app version and increase the build number in `project.yml` in a pull request. Run `xcodegen generate` to update `UsageNotch/Info.plist`. After merging the pull request, tag the merged commit with the matching version and push the tag. For example, use `v0.1.5` for app version `0.1.5`.
+Update the app version and increase the build number in `project.yml` in a pull request. Run `xcodegen generate` to update `UsageNotch/Info.plist`. After merging the pull request, tag the merged commit with the matching version and push the tag. For example, use `v0.1.6` for app version `0.1.6`.
 
 ```sh
 git switch main
 git pull --ff-only
-git tag -a v0.1.5 -m 'On pace. 0.1.5'
-git push origin v0.1.5
+git tag -a v0.1.6 -m 'On pace. 0.1.6'
+git push origin v0.1.6
 ```
 
 GitHub Actions builds, signs, and notarizes the universal app. It publishes the ZIP and the signed Sparkle update feed together as a stable release. If a run fails because of missing credentials or a temporary service error, fix the issue and rerun it from the **Actions** tab.
