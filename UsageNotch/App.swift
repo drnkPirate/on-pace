@@ -85,6 +85,7 @@ private final class NotchPanel: NSObject, @preconcurrency SPUStandardUserDriverD
     private var menuOpen = false
     private var aboutWindow: NSWindow?
     private var settingsWindow: NSWindow?
+    private var dashboardWindow: NSWindow?
     private var opensOnHover: Bool {
         store.preferences.opensOnHover
     }
@@ -158,6 +159,7 @@ private final class NotchPanel: NSObject, @preconcurrency SPUStandardUserDriverD
             store: store, compactStyle: placement.compactStyle, detailWidth: placement.detailWidth,
             presentation: presentation,
             togglePin: { [weak self] in self?.togglePin() },
+            openDashboard: { [weak self] in self?.showDashboard() },
             openSettings: { [weak self] in self?.settingsMenu() },
             compactWidthChanged: { [weak self] in self?.updateCompactWidth($0) }
         ))
@@ -241,6 +243,7 @@ private final class NotchPanel: NSObject, @preconcurrency SPUStandardUserDriverD
     private func settingsMenu() {
         let menu = NSMenu()
         menu.autoenablesItems = false
+        item(String(localized: "dashboard.title"), action: #selector(showDashboard), in: menu)
         item("Settings…", action: #selector(showSettings), in: menu).keyEquivalent = ","
         menu.addItem(.separator())
         item("About \(displayName)", action: #selector(showAbout), in: menu)
@@ -337,6 +340,33 @@ private final class NotchPanel: NSObject, @preconcurrency SPUStandardUserDriverD
         }
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func showDashboard() {
+        if dashboardWindow == nil {
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: NotchShape.expandedWidth, height: NotchShape.expandedHeight),
+                styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false
+            )
+            window.title = String(localized: "dashboard.title")
+            window.contentMinSize = NSSize(width: 600, height: 400)
+            window.isReleasedWhenClosed = false
+            window.appearance = NSAppearance(named: .darkAqua)
+            window.contentViewController = NSHostingController(rootView:
+                TimelineView(.periodic(from: .now, by: 1)) { [store] timeline in
+                    ScrollView {
+                        UsageDashboard(store: store, now: timeline.date, animateHighlights: true)
+                            .padding(20)
+                    }
+                    .background(.black)
+                }
+            )
+            window.center()
+            dashboardWindow = window
+        }
+        if !pinned { setExpanded(false) }
+        NSApp.activate(ignoringOtherApps: true)
+        dashboardWindow?.makeKeyAndOrderFront(nil)
     }
 
     private func settingsChanged() {

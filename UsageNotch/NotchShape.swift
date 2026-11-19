@@ -125,7 +125,7 @@ struct EdgeLight: View {
     }
 
     private static let logoSize: CGFloat = 14
-    private static let barWidth: CGFloat = 30
+    private static let barWidth: CGFloat = 42
 
     var body: some View {
         if let action {
@@ -251,15 +251,15 @@ struct EdgeLight: View {
 
     private func bar(_ quota: QuotaWindow, provider: Provider, mirrored: Bool) -> some View {
         let isStale = stale(provider)
+        let pace = isStale ? nil : quota.elapsedFraction(at: now)
         let reached = quota.level == .reached && (quota.resetsAt.map { $0 > now } ?? true)
-        let fillWidth = quota.fillWidth(in: Self.barWidth, minimum: 3)
         return ZStack(alignment: mirrored ? .trailing : .leading) {
             Capsule().fill(.white.opacity(0.16))
             if quota.fractionUsed > 0 {
                 Throb(enabled: reached && !isStale && animateHighlights) {
                     Capsule()
                         .fill(provider.tint)
-                        .frame(width: fillWidth, height: 4)
+                        .frame(width: quota.fillWidth(in: Self.barWidth, minimum: pace == nil ? 3 : 0), height: 4)
                         .shadow(
                             color: provider.tint.opacity(quota.level == .normal || isStale ? 0 : 0.8),
                             radius: reached ? 8 : 5
@@ -269,15 +269,12 @@ struct EdgeLight: View {
         }
         .frame(width: Self.barWidth, height: 4)
         .overlay {
-            if !isStale, let projected = quota.pace(at: now)?.projectedFraction {
-                QuotaForecastBar(projected: projected, fillWidth: fillWidth, tint: provider.tint.opacity(0.4),
-                                 tickSize: CGSize(width: 1.5, height: 8), mirrored: mirrored)
-            }
-        }
-        .overlay {
             if animateHighlights && !reduceMotion {
                 ResetRipple(provider: provider, mirrored: mirrored, reset: store.compactQuotaResets[provider])
             }
+        }
+        .overlay {
+            if let pace { PaceMarker(fraction: pace, mirrored: mirrored) }
         }
         .accessibilityHidden(true)
     }
@@ -296,41 +293,37 @@ struct EdgeLight: View {
             let age = isStale ? ", last known reading" : ""
             let period = quota.durationMinutes == 300 ? "5-hour session" : "weekly limit"
             let reset = onlyProvider == provider ? self.reset(for: provider).map { ", \($0.spoken)" } ?? "" : ""
-            let forecast = isStale ? "" : quota.pace(at: now)?.accessibilitySuffix ?? ""
-            return "\(provider.name) \(quota.percentage) of \(period)\(age)\(reset)\(forecast)"
+            let pace = isStale ? nil : quota.elapsedFraction(at: now)
+            let marker = pace.map { ", " + UsageFormat.paceMarker($0) } ?? ""
+            return "\(provider.name) \(quota.percentage) of \(period)\(age)\(reset)\(marker)"
         }
         let readings = descriptions.isEmpty ? "no readings" : descriptions.joined(separator: ", ")
         return "AI usage: \(readings)." + (action == nil ? "" : " Show details")
     }
 }
 
-struct QuotaForecastBar: View {
-    let projected: Double
-    let fillWidth: CGFloat
-    let tint: Color
-    let tickSize: CGSize
+struct PaceMarker: View {
+    let fraction: Double
     var mirrored = false
 
     var body: some View {
         GeometryReader { geometry in
             let width = geometry.size.width
-            let height = geometry.size.height
-            let stop = width * projected
-            let stretch = max(0, stop - fillWidth)
-            let edge = mirrored ? width - stop : stop
-
-            Rectangle()
-                .fill(tint)
-                .frame(width: stretch, height: height)
-                .position(x: edge + (mirrored ? stretch / 2 : -stretch / 2), y: height / 2)
-                .clipShape(Capsule())
-            if projected < 1 && stop > fillWidth {
-                Rectangle()
-                    .fill(.white.opacity(0.92))
-                    .frame(width: tickSize.width, height: tickSize.height)
-                    .position(x: edge, y: height / 2)
-            }
+            let progress = mirrored ? 1 - fraction : fraction
+            PaceTick()
+                .frame(width: 2, height: geometry.size.height + 4)
+                .position(x: min(width - 1, max(1, width * progress)), y: geometry.size.height / 2)
         }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+struct PaceTick: View {
+    var body: some View {
+        Capsule().fill(.white)
+            .overlay { Capsule().strokeBorder(.black.opacity(0.6), lineWidth: 0.5) }
+            .accessibilityHidden(true)
     }
 }
 
