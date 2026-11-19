@@ -229,55 +229,35 @@ struct UsageDashboard: View {
     }
 
     private func headline(_ quota: QuotaWindow, provider: Provider, sampledAt: Date, stale: Bool) -> some View {
-        let reached = quota.level == .reached && (quota.resetsAt.map { $0 > now } ?? true)
+        let highlights = !stale && (quota.resetsAt.map { $0 > now } ?? true)
         let marker = stale ? nil : quota.elapsedFraction(at: now)
         let forecast = stale ? nil : quota.pace(sampledAt: sampledAt, now: now)
         let reset = quota.compactReset(at: now)?.spoken
-        return HStack(spacing: 16) {
-            ZStack {
-                Circle().strokeBorder(.white.opacity(0.09), lineWidth: 8)
-                if quota.fractionUsed > 0 {
-                    Throb(enabled: reached && !stale && animateHighlights) {
-                        Circle()
-                            .trim(from: 0, to: quota.fractionUsed)
-                            .stroke(provider.tint, style: StrokeStyle(lineWidth: 8, lineCap: marker == nil ? .round : .butt))
-                            .rotationEffect(.degrees(-90))
-                            .padding(4)
-                            .shadow(
-                                color: provider.tint.opacity(quota.level == .normal || stale ? 0 : 0.60),
-                                radius: reached ? 10 : 7
-                            )
-                    }
-                }
-                if let marker {
-                    PaceTick()
-                        .frame(width: 2, height: 12)
-                        .frame(maxHeight: .infinity, alignment: .top)
-                        .rotationEffect(.degrees(360 * marker))
-                }
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(quota.durationMinutes == 300 ? "5-hour session" : "Weekly limit")
+                    .font(.system(size: 12, weight: .medium))
+                Spacer(minLength: 4)
                 Text(quota.percentage).font(.system(size: 22, weight: .bold))
             }
-            .frame(width: 84, height: 84)
+            QuotaBar(quota: quota, tint: provider.tint, pace: marker, highlights: highlights, animates: animateHighlights)
+                .frame(height: 8)
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(quota.durationMinutes == 300 ? "5-hour session" : "Weekly limit").font(.system(size: 11.5)).foregroundStyle(secondary)
+            HStack(spacing: 8) {
                 if quota.durationMinutes != 300, let reset = quota.resetsAt {
                     Text("Resets \(UsageFormat.weekday(reset)) \(UsageFormat.time(reset))")
-                        .font(.system(size: 17, weight: .semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
                 } else if let minutes = quota.minutesUntilReset(from: now) {
                     Text(minutes == 0 ? "Reset pending" :
                          "\(quota.level == .reached ? "Back in" : "Resets in") \(UsageFormat.duration(minutes))")
-                        .font(.system(size: 17, weight: .semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
                 }
+                Spacer(minLength: 0)
                 if let forecast { forecastText(forecast) }
             }
-            Spacer(minLength: 0)
+            .font(.system(size: 11.5))
+            .foregroundStyle(secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
         }
-        .frame(height: 84)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(provider.name) \(quota.durationMinutes == 300 ? "5-hour session" : "weekly limit") \(quota.percentage) used")
         .accessibilityValue([reset, marker.map(UsageFormat.paceMarker), forecast?.title(at: now)]
@@ -301,18 +281,8 @@ struct UsageDashboard: View {
             .lineLimit(1)
             .minimumScaleFactor(0.83)
             HStack(spacing: 9) {
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 3).fill(.white.opacity(0.08))
-                        RoundedRectangle(cornerRadius: 3).fill(provider.tint)
-                            .frame(width: quota.fillWidth(in: geometry.size.width, minimum: marker == nil ? 4 : 0))
-                    }
-                }
-                .frame(height: 6)
-                .overlay {
-                    if let marker { PaceMarker(fraction: marker) }
-                }
-                .accessibilityHidden(true)
+                QuotaBar(quota: quota, tint: provider.tint, pace: marker)
+                    .frame(height: 6)
                 if let forecast {
                     forecastText(forecast)
                         .frame(width: 115, alignment: .trailing)

@@ -34,7 +34,7 @@ Use macOS 14 or later on a Mac with Apple silicon or an Intel processor. Install
 
 - The notch shows the reported weekly limit, with the five-hour limit as a fallback.
 - Hover for the breakdown. Click the notch or use the pin to keep it open.
-- The white tick marks how much of the quota window has elapsed. If the colored fill passes the tick in its direction of travel, usage is running ahead of pace.
+- The white tick marks how much of the quota window has elapsed. When the colored fill extends to the right of the tick, usage is running ahead of pace.
 - The panel estimates when the limit will be hit or how much quota will be left at reset, using the average rate since the window started.
 - Use the expand button or **Usage Dashboard** in the gear menu to open the dashboard in its own window.
 - Choose **7 days** or **30 days** to compare activity with the preceding period. The app remembers your choice.
@@ -42,7 +42,7 @@ Use macOS 14 or later on a Mac with Apple silicon or an Intel processor. Install
 - On pace. checks for stable releases at launch and about once a day while running. A dot on the gear shows when an update is available.
 - Open **Update Available** and choose **Install Update**. On pace. verifies the download and lets you install it and relaunch.
 - On a display without a camera notch, a compact notch shape sits at the top edge, within the menu bar's height.
-- The small `5h` and `wk` labels identify the period beside each percentage. The panel shows the same limit in its ring, with additional reported limits below it.
+- The small `5h` and `wk` labels identify the period beside each percentage. The panel shows the same limit in its main bar, with additional reported limits below it.
 - In **Settings > Providers**, choose which providers appear in the notch, panel, and history. At least one stays on.
 - In **Settings > General > Display**, choose the primary display or a specific monitor. The app remembers your choice and uses the primary display when that monitor is disconnected.
 
